@@ -53,13 +53,19 @@ data = read.table("data.txt")
 head(data)
 ```
 
+Removing the **ID column** and the categorical **state** and **county** columns
+
+```{r}
+data.filtered = data[,-c(1, 2, 3)]
+head(data.filtered)
+```
+
 # Analysis
 
 > Code for the statistical analysis (R)
 
 ```{r}
-# Removing the ID column and the categorical state and county columns
-data.lm.naive = lm(V8 ~ . - V1 - V2 - V3, data=data)
+data.lm.naive = lm(V8 ~ ., data=data.filtered)
 summary(data.lm.naive)
 ```
 
