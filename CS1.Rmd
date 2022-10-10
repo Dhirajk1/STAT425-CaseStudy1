@@ -4,7 +4,7 @@ output: html_document
 date: "2022-10-10"
 ---
 
-## The Data:
+# Introduction to Data
 
 > The goal in the case study is to propose a *regression model for predicting the number of practicing physicians* by county using information from the years 1990 and 1992. The data set provides selected county demographic information (CDI) for 440 of the most populous counties in the United States. Each line of data set has an identification number with a county name and state abbreviation and provides information on 14 variables for a single county. The variables are (in the order they are recorded in the `.txt` file)
 
@@ -49,8 +49,8 @@ date: "2022-10-10"
 Importing our data in R
 
 ```{r}
-data.original = read.table("data.txt")
-head(data.original)
+data = read.table("data.txt")
+head(data)
 ```
 
 # Analysis
@@ -58,7 +58,8 @@ head(data.original)
 > Code for the statistical analysis (R)
 
 ```{r}
-data.lm.naive = lm(V8 ~ ., data=data)
+# Removing the ID column and the categorical state and county columns
+data.lm.naive = lm(V8 ~ . - V1 - V2 - V3, data=data)
 summary(data.lm.naive)
 ```
 
