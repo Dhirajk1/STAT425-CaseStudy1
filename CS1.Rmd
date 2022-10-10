@@ -1,0 +1,67 @@
+---
+title: "Case Study 1"
+output: html_document
+date: "2022-10-10"
+---
+
+## The Data:
+
+> The goal in the case study is to propose a *regression model for predicting the number of practicing physicians* by county using information from the years 1990 and 1992. The data set provides selected county demographic information (CDI) for 440 of the most populous counties in the United States. Each line of data set has an identification number with a county name and state abbreviation and provides information on 14 variables for a single county. The variables are (in the order they are recorded in the `.txt` file)
+
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| Variable Number | Variable Name                     | Variable Description                                                                               |
++=================+===================================+====================================================================================================+
+| 1               | Identification Number             | 1-440\                                                                                             |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 2               | County                            | County Name                                                                                        |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 3               | State                             | Two-letter state abbreviation                                                                      |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 4               | Land Area                         | Land area (square miles)                                                                           |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 5               | Total Population                  | Estimated 1990 population                                                                          |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 6               | Percent of Population ages 18-24  | Percent of 1990 CDI population                                                                     |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 7               | Percent of Population 65 or older | Percent of 1990 CDI population ages 65 or older                                                    |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 8               | Number of Active Physicians       | Number of professional active non-federal physicians during 1990                                   |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 9               | Number of Hospital Beds           | Total number of beds, cribs, and bassinets during 1990                                             |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 10              | Total Serious Crimes              | Total number of serious crimes in 1990 as reported by law enforcement agencies                     |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 11              | Percent High School Graduates     | Percent of adult population who completed 12 or more years of school                               |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 12              | Percent of Bachelor's Degrees     | Percent of adult population with bachelor's degrees                                                |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 13              | Percent Below Poverty Level       | Percent of 1990 CDI population with income below poverty level                                     |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 14              | Percent Unemployment              | Percent of 1990 CDI labor force that is unemployed                                                 |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 15              | Per Capita Income                 | Per capita income of 1990 CDI population (dollars)                                                 |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 16              | Total Personal Income             | Total person income of 1990 CDI population (in millions of dollars)                                |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+| 17              | Geographic Region                 | Geographic region classification that is used in the US Bureau of the Census: 1=NE, 2=NC, 3=S, 4=W |
++-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
+
+Importing our data in R
+
+```{r}
+data.original = read.table("data.txt")
+head(data.original)
+```
+
+# Analysis
+
+> Code for the statistical analysis (R)
+
+```{r}
+data.lm.naive = lm(V8 ~ ., data=data)
+summary(data.lm.naive)
+```
+
+# Planning
+
+> Things we've noticed (basically an outline for the executive summary we're submitting separately)
