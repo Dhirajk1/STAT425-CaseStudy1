@@ -3,4 +3,4 @@
 
 Our work for the first case study in STAT425
 
-*by Abhi, Dhiraj, Khatija*
+*by Abhi, Dhiraj, Khatija, and Jake*
