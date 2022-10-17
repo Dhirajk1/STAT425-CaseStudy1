@@ -4,7 +4,7 @@ output: html_document
 date: "2022-10-10"
 ---
 
-# Introduction to Data
+# Getting Started
 
 > The goal in the case study is to propose a *regression model for predicting the number of practicing physicians* by county using information from the years 1990 and 1992. The data set provides selected county demographic information (CDI) for 440 of the most populous counties in the United States. Each line of data set has an identification number with a county name and state abbreviation and provides information on 14 variables for a single county. The variables are (in the order they are recorded in the `.txt` file)
 
@@ -46,6 +46,8 @@ date: "2022-10-10"
 | 17              | Geographic Region                 | Geographic region classification that is used in the US Bureau of the Census: 1=NE, 2=NC, 3=S, 4=W |
 +-----------------+-----------------------------------+----------------------------------------------------------------------------------------------------+
 
+## Setting up Data
+
 Importing our data in R
 
 ```{r}
@@ -56,41 +58,85 @@ head(data)
 Removing the **ID column** and the categorical **state** and **county** columns
 
 ```{r}
-data.filtered = data[,-c(1, 2, 3)]
-head(data.filtered)
+data2 = data[,-c(1, 2, 3)]
+head(data2)
 ```
 
-# Analysis
+## Exploring the Data
 
-> Code for the statistical analysis (R)
+> Making da graphs
 
 ```{r}
-data.lm.naive = lm(V8 ~ ., data=data.filtered)
-summary(data.lm.naive)
+hist(data2$V8,main="Histogram of V8", breaks=250, col=2)
 ```
 
-# Planning
+```{r}
+hist(data2$V8,breaks=250, main="Histogram of V8 < 5000", xlim=range(10, 5000), col=2)
+```
 
-> Things we've noticed (basically an outline for the executive summary we're submitting separately)
+```{r}
+ggplot(data2, aes(V8)) +
+  stat_ecdf(geom = "step", pad=FALSE, color=2) +
+  ggtitle("Empircal Distribution of V8")
+```
+
+Summary Stats for Each Column
+
+```{r}
+summary(data2[,1:5])
+summary(data2[,6:10])
+summary(data2[,11:12])
+```
+
+Correlation Matrix (fancy colors go brrrrr)
 
 ```{r}
 library(corrplot)
-```
-
-```{r}
 M = cor(data.filtered)
 corrplot(M, tl.srt = 45)
 ```
 
-```{r}
-guessed = lm(V8 ~ V5 + V9 + V12 + V10 + V15 + V16, data=data.filtered)
-summary(guessed)
-```
+# MLR Time
+
+> Let's start with a full model
 
 ```{r}
-model = lm(V8 ~ V5 + V9 + V12 + V15 + V16, data=data.filtered)
-summary(model)
+model.full = lm(V8 ~ ., data=data2)
+summary(model.full)
 ```
+
+Let's filter out predictors that have high p-values
+
+```{r}
+p_vals = summary(model.full)$coef[, "Pr(>|t|)"]
+names(p_vals[p_vals < .25])
+```
+
+Let's use these predictors and compare to the full model
+
+```{r}
+model.reduced = lm(V8 ~ V5 + V9 + V11 + V12 + V15 + V16 + V17, data=data2)
+summary(model.reduced)
+anova(model.reduced, model.full)
+```
+
+Let's see if we can trim off `V17`
+
+```{r}
+model.reduced2 = lm(V8 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+summary(model.reduced2)
+anova(model.reduced2, model.full)
+```
+
+We could reduce our model further (by potentially getting rid of `V11`) but we're gonna keep it was is because all the coefficients have a good p-value (so they are probably not zero) and any removals would probably reduce the p-value from the anova (reduced vs full) significantly. For example:
+
+```{r}
+model.reduced2 = lm(V8 ~ V5 + V9 + V12 + V15 + V16, data=data2)
+summary(model.reduced2)
+anova(model.reduced2, model.full)
+```
+
+Now all our p-values for individual coefficients are less that $\alpha$ so we won't drop any more $\beta$s from our reduced model :)
 
 # Diagnostics
 
