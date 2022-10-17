@@ -72,3 +72,156 @@ summary(data.lm.naive)
 # Planning
 
 > Things we've noticed (basically an outline for the executive summary we're submitting separately)
+
+```{r}
+library(corrplot)
+```
+
+```{r}
+M = cor(data.filtered)
+corrplot(M, tl.srt = 45)
+```
+
+```{r}
+guessed = lm(V8 ~ V5 + V9 + V12 + V10 + V15 + V16, data=data.filtered)
+summary(guessed)
+```
+
+```{r}
+model = lm(V8 ~ V5 + V9 + V12 + V15 + V16, data=data.filtered)
+summary(model)
+```
+
+# Diagnostics
+
+```{r}
+p = 5
+n = nrow(data.filtered)
+leverages = influence(model)$hat
+high = leverages[leverages > (2*p)/n]
+prct_high_lev = length(high) / n
+prct_high_lev
+```
+
+```{r}
+library(faraway)
+halfnorm(leverages, nlab=6, labs=as.character(1:length(leverages)), ylab="Leverages")
+```
+
+1 and 2 are kinda wack
+
+```{r}
+sorted_high_lev = sort(high, decreasing = TRUE)
+sorted_high_lev
+```
+
+```{r}
+# Calculate the IQR for the dependent variable 
+IQR_y = IQR(data.filtered$V8)
+
+#Define a range with its lower limit being (Q1 - IQR) and upper limit being (Q3 + IQR) 
+QT1_y = quantile(data.filtered$V8, 0.25)
+QT3_y = quantile(data.filtered$V8, 0.75)
+
+lower_lim_y = QT1_y - IQR_y
+upper_lim_y = QT3_y + IQR_y
+
+vector_lim_y = c(lower_lim_y,upper_lim_y)
+
+# Range for y variable 
+vector_lim_y
+```
+
+```{r}
+# Extract observations with high leverage points from the original data frame 
+highlev = data.filtered[leverages > 2*p/n,]
+
+# Select only the observations with leverage points outside the range 
+highlev_lower = highlev[highlev$V8 < vector_lim_y[1], ]
+highlev_upper = highlev[highlev$V8 > vector_lim_y[2], ]
+highlev2 = rbind(highlev_lower,highlev_upper)
+highlev2
+```
+
+```{r}
+nrow(highlev2) / length(high)
+```
+
+## Outliers :)
+
+```{r}
+resid = rstudent(model)
+resid.sorted = sort(abs(resid), decreasing=TRUE)
+head(resid.sorted)
+```
+
+```{r}
+bonferroni_cv = qt(.05/(2*n), n-p-1) 
+bonferroni_cv
+```
+
+```{r}
+outliers = resid[abs(resid) > abs(bonferroni_cv)]
+```
+
+```{r}
+cooks = cooks.distance(model)
+sort(cooks, decreasing = TRUE)[1:10]
+```
+
+```{r}
+plot(cooks)
+```
+
+# Let's check the model assumption :(
+
+## Constant Variance Assumption
+
+```{r}
+plot(model, which=1)
+```
+
+```{r}
+hist(model$residuals,breaks=100)
+```
+
+```{r}
+library(lmtest)
+bptest(model)
+
+```
+
+Variance ain't constant
+
+stabilize this shit
+
+```{r}
+
+model_no_15 = lm(1/V8 ~ V5 + V9 + V12 + V16, data=data.filtered)
+bptest(model_no_15)
+plot(model_no_15, which=2)
+```
+
+```{r}
+to_axe = (as.integer(rownames(highlev2)))
+data_no_high_lev = data.filtered[-to_axe,]
+
+resid = rstudent(model)
+resid.sorted = sort(abs(resid), decreasing=TRUE)
+n = nrow(data_no_high_lev)
+bonferroni_cv = qt(.05/(2*n), n-p-1) 
+outliers = resid[abs(resid) > abs(bonferroni_cv)]
+data_no_bad = data_no_high_lev[-as.integer(names(outliers)),]
+```
+
+```{r}
+model_high_lev = lm(sqrt(V8) ~ ., data=data_no_bad)
+```
+
+```{r}
+bptest(model_high_lev)
+```
+
+```{r}
+plot(model_high_lev, which=1)
+```
