@@ -138,36 +138,40 @@ anova(model.reduced2, model.full)
 
 Now all our p-values for individual coefficients are less that $\alpha$ so we won't drop any more $\beta$s from our reduced model :)
 
-# Diagnostics
+# Unusual Observations
+
+## High-Leverage Points
 
 ```{r}
-p = 5
-n = nrow(data.filtered)
-leverages = influence(model)$hat
-high = leverages[leverages > (2*p)/n]
-prct_high_lev = length(high) / n
-prct_high_lev
+p = length(variable.names(model.reduced))
+n = nrow(data2)
+data.leverages = influence(model.reduced)$hat
 ```
 
 ```{r}
 library(faraway)
-halfnorm(leverages, nlab=6, labs=as.character(1:length(leverages)), ylab="Leverages")
+halfnorm(data.leverages, nlab=6, labs=as.character(1:length(data.leverages)), ylab="Leverages")
 ```
 
-1 and 2 are kinda wack
+1 and 2 are kinda out there :0
+
+Let's find the high leverage points
 
 ```{r}
-sorted_high_lev = sort(high, decreasing = TRUE)
-sorted_high_lev
+data.leverages.high = data.leverages[data.leverages > (2*p)/n]
+data.leverages.high = sort(abs(data.leverages.high), decreasing = TRUE)
+head(data.leverages.high)
 ```
+
+Let's find all the rows that are "bad" high-leverage points
 
 ```{r}
 # Calculate the IQR for the dependent variable 
-IQR_y = IQR(data.filtered$V8)
+IQR_y = IQR(data2$V8)
 
 #Define a range with its lower limit being (Q1 - IQR) and upper limit being (Q3 + IQR) 
-QT1_y = quantile(data.filtered$V8, 0.25)
-QT3_y = quantile(data.filtered$V8, 0.75)
+QT1_y = quantile(data2$V8, 0.25)
+QT3_y = quantile(data2$V8, 0.75)
 
 lower_lim_y = QT1_y - IQR_y
 upper_lim_y = QT3_y + IQR_y
@@ -180,25 +184,28 @@ vector_lim_y
 
 ```{r}
 # Extract observations with high leverage points from the original data frame 
-highlev = data.filtered[leverages > 2*p/n,]
+data.highlev = data2[data.leverages > 2*p/n,]
 
 # Select only the observations with leverage points outside the range 
-highlev_lower = highlev[highlev$V8 < vector_lim_y[1], ]
-highlev_upper = highlev[highlev$V8 > vector_lim_y[2], ]
-highlev2 = rbind(highlev_lower,highlev_upper)
-highlev2
+data.highlev_lower = data.highlev[data.highlev$V8 < vector_lim_y[1], ]
+data.highlev_upper = data.highlev[data.highlev$V8 > vector_lim_y[2], ]
+data.highlev2 = rbind(data.highlev_lower, data.highlev_upper)
+data.highlev2
+```
+
+## Outliers
+
+> Let's find the outliers in our dataset
+
+```{r}
+p = length(variable.names(model.reduced))
+n = nrow(data2)
 ```
 
 ```{r}
-nrow(highlev2) / length(high)
-```
-
-## Outliers :)
-
-```{r}
-resid = rstudent(model)
-resid.sorted = sort(abs(resid), decreasing=TRUE)
-head(resid.sorted)
+data.resid = rstudent(model.reduced)
+data.resid.sorted = sort(abs(data.resid), decreasing=TRUE)
+head(data.resid.sorted)
 ```
 
 ```{r}
@@ -207,67 +214,108 @@ bonferroni_cv
 ```
 
 ```{r}
-outliers = resid[abs(resid) > abs(bonferroni_cv)]
+data.outliers = data.resid[abs(data.resid) > abs(bonferroni_cv)]
+data.outliers
 ```
+
+We got a couple of outliers over here :)
 
 ```{r}
-cooks = cooks.distance(model)
-sort(cooks, decreasing = TRUE)[1:10]
+cat("Mean: ", mean(data2$V8))
+cat("\nOutlier Values: ", data2$V8[as.integer(names(data.outliers))])
 ```
+
+## Influential Points
+
+> Let's find the influential points using Cook's distance
 
 ```{r}
-plot(cooks)
+data.cooks = cooks.distance(model.reduced)
+data.cooks[data.cooks >= 1]
 ```
 
-# Let's check the model assumption :(
+Look's like the first row is influential.
+
+```{r}
+plot(data.cooks)
+```
+
+Sure looks like it lol
+
+# Let's check the model assumption
 
 ## Constant Variance Assumption
 
 ```{r}
-plot(model, which=1)
-```
-
-```{r}
-hist(model$residuals,breaks=100)
+plot(model.reduced, which=1)
 ```
 
 ```{r}
 library(lmtest)
-bptest(model)
-
+bptest(model.reduced)
 ```
 
-Variance ain't constant
+**yikes**
 
-stabilize this shit
+Square Root Transform?
 
 ```{r}
-
-model_no_15 = lm(1/V8 ~ V5 + V9 + V12 + V16, data=data.filtered)
-bptest(model_no_15)
-plot(model_no_15, which=2)
+sqrt_transform = lm(sqrt(V8) ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+plot(sqrt_transform, which=1)
 ```
 
 ```{r}
-to_axe = (as.integer(rownames(highlev2)))
-data_no_high_lev = data.filtered[-to_axe,]
+bptest(sqrt_transform)
+```
 
-resid = rstudent(model)
-resid.sorted = sort(abs(resid), decreasing=TRUE)
-n = nrow(data_no_high_lev)
-bonferroni_cv = qt(.05/(2*n), n-p-1) 
-outliers = resid[abs(resid) > abs(bonferroni_cv)]
-data_no_bad = data_no_high_lev[-as.integer(names(outliers)),]
+:(
+
+Log Transform?
+
+```{r}
+log_transform = lm(log(V8) ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+plot(log_transform, which=1)
 ```
 
 ```{r}
-model_high_lev = lm(sqrt(V8) ~ ., data=data_no_bad)
+bptest(log_transform)
+```
+
+:(
+
+Inverse Transform?
+
+```{r}
+inv_transform = lm(1/V8 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+plot(inv_transform, which=1)
 ```
 
 ```{r}
-bptest(model_high_lev)
+bptest(inv_transform)
+```
+
+um idk about this one tbh
+
+## Normality Assumption
+
+```{r}
+hist(model.reduced$residuals,breaks=100, col=2)
 ```
 
 ```{r}
-plot(model_high_lev, which=1)
+plot(model.reduced, which=2, col=2)
 ```
+
+```{r}
+ks.test(data2$V8, "pnorm")
+```
+
+\^ This is mad because an actual continuous distribution shouldn't have repeat points
+
+```{r}
+shapiro.test(data2$V8)
+```
+
+technically this is only good for n \< 50 (our n is much bigger)
+
+**TLDR: So not normal :(**
