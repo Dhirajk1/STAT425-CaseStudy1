@@ -214,7 +214,7 @@ anova(model.reduced.no_bad_highlev, model.full.no_bad_highlev)
 ```
 
 ```{r}
-plot(model.reduced2.no_bad_highlev)
+plot(model.reduced.no_bad_highlev)
 ```
 
 ## Outliers
@@ -367,3 +367,56 @@ shapiro.test(data2$V8)
 technically this is only good for n \< 50 (our n is much bigger)
 
 **TLDR: So not normal :(**
+
+## Checking For Serial Dependence
+
+```{r}
+dwtest(model.reduced)
+```
+
+## Box Cox
+
+```{r}
+library(MASS)
+
+bc = boxcox(data2$V8 ~ ., data=data2)
+lambda = bc$x[which.max(bc$y)]
+```
+
+```{r}
+model.tr = lm((V8^lambda-1)/lambda ~ ., data=data2)
+summary(model.tr)
+```
+
+```{r}
+plot(model.tr)
+```
+
+```{r}
+bptest(model.tr)
+```
+
+```{r}
+data_no_bad = data2[-union(as.integer(rownames(data.highlev2)), as.integer(names(data.outliers))),]
+
+bc = boxcox(data_no_bad$V8 ~ ., data=data_no_bad)
+lambda = bc$x[which.max(bc$y)]
+```
+
+```{r}
+model.tr.no_bad = lm((V8^lambda-1)/lambda ~ ., data=data_no_bad)
+summary(model.tr)
+```
+
+```{r}
+plot(model.tr.no_bad)
+```
+
+```{r}
+hist(model.tr.no_bad$residuals, breaks=100)
+```
+
+```{r}
+y = data_no_bad$V8
+ks.test((y^lambda-1)/lambda, "pnorm")
+```
