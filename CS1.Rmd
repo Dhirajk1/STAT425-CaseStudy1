@@ -75,6 +75,7 @@ hist(data2$V8,breaks=250, main="Histogram of V8 < 5000", xlim=range(10, 5000), c
 ```
 
 ```{r}
+library(ggplot2)
 ggplot(data2, aes(V8)) +
   stat_ecdf(geom = "step", pad=FALSE, color=2) +
   ggtitle("Empircal Distribution of V8")
@@ -193,6 +194,29 @@ data.highlev2 = rbind(data.highlev_lower, data.highlev_upper)
 data.highlev2
 ```
 
+What is we remove the high leverage points?
+
+```{r}
+data2.no_bad_highlev = data2[-as.integer(rownames(data.highlev2)),]
+model.full.no_bad_highlev = lm(V8 ~ . , data=data2.no_bad_highlev)
+summary(model.full.no_bad_highlev)
+```
+
+```{r}
+p_vals = summary(model.full.no_bad_highlev)$coef[, "Pr(>|t|)"]
+names(p_vals[p_vals < .25])
+```
+
+```{r}
+model.reduced.no_bad_highlev = lm(V8 ~ V5 + V9 +  V12 + V15 + V16, data=data2.no_bad_highlev)
+summary(model.reduced.no_bad_highlev)
+anova(model.reduced.no_bad_highlev, model.full.no_bad_highlev)
+```
+
+```{r}
+plot(model.reduced2.no_bad_highlev)
+```
+
 ## Outliers
 
 > Let's find the outliers in our dataset
@@ -223,6 +247,30 @@ We got a couple of outliers over here :)
 ```{r}
 cat("Mean: ", mean(data2$V8))
 cat("\nOutlier Values: ", data2$V8[as.integer(names(data.outliers))])
+```
+
+What happens if we remove them from our data?
+
+```{r}
+data2.no_outliers = data2[-as.integer(names(data.outliers)),]
+
+model.full.no_outliers = lm(V8~ ., data=data2.no_outliers)
+summary(model.full.no_outliers)
+```
+
+```{r}
+p_vals = summary(model.full.no_outliers)$coef[, "Pr(>|t|)"]
+names(p_vals[p_vals < .25])
+```
+
+```{r}
+model.reduced.no_outliers = lm(V8 ~ V5 + V9 + V10 + V12 + V15 + V16, data=data2.no_outliers)
+summary(model.reduced.no_outliers)
+anova(model.reduced.no_outliers, model.full.no_outliers)
+```
+
+```{r}
+plot(model.reduced.no_outliers)
 ```
 
 ## Influential Points
@@ -286,7 +334,7 @@ bptest(log_transform)
 Inverse Transform?
 
 ```{r}
-inv_transform = lm(1/V8 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+inv_transform = lm(V8^-10 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
 plot(inv_transform, which=1)
 ```
 
