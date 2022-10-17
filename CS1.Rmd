@@ -97,6 +97,12 @@ M = cor(data.filtered)
 corrplot(M, tl.srt = 45)
 ```
 
+```{r}
+model = lm(V8 ~., data=data)
+p_vals = summary(model)$coef[, 'Pr(>|t|)']
+names(p_vals[p_vals < .05])
+```
+
 # MLR Time
 
 > Let's start with a full model
@@ -290,6 +296,22 @@ plot(data.cooks)
 
 Sure looks like it lol
 
+```{r}
+data.no_inf = data2[-1, ]
+model.full.no_inf = lm(V8 ~ ., data=data.no_inf)
+summary(model.full.no_inf)
+```
+
+```{r}
+model.reduced.no_inf = lm(V8 ~ V5 + V9 + V11 + V15 + V12 + V16, data.no_inf)
+summary(model.reduced.no_inf)
+anova(model.reduced.no_inf, model.full.no_inf)
+```
+
+```{r}
+plot(model.reduced.no_inf)
+```
+
 # Let's check the model assumption
 
 ## Constant Variance Assumption
@@ -334,7 +356,7 @@ bptest(log_transform)
 Inverse Transform?
 
 ```{r}
-inv_transform = lm(V8^-10 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+inv_transform = lm(V8^-1 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
 plot(inv_transform, which=1)
 ```
 
@@ -379,22 +401,24 @@ dwtest(model.reduced)
 ```{r}
 library(MASS)
 
-bc = boxcox(data2$V8 ~ ., data=data2)
+bc = boxcox(1/data2$V8 ~ ., data=data2)
 lambda = bc$x[which.max(bc$y)]
 ```
 
 ```{r}
-model.tr = lm((V8^lambda-1)/lambda ~ ., data=data2)
+model.tr = lm(((V8^lambda-1)/lambda) ~ ., data=data2)
 summary(model.tr)
 ```
 
 ```{r}
-plot(model.tr)
+plot(model.tr, col=2)
 ```
 
 ```{r}
 bptest(model.tr)
 ```
+
+Trying this w/ no outliers or bad high leverages
 
 ```{r}
 data_no_bad = data2[-union(as.integer(rownames(data.highlev2)), as.integer(names(data.outliers))),]
@@ -409,7 +433,11 @@ summary(model.tr)
 ```
 
 ```{r}
-plot(model.tr.no_bad)
+plot(model.tr.no_bad, col=2)
+```
+
+```{r}
+bptest(model.tr.no_bad)
 ```
 
 ```{r}
@@ -418,5 +446,5 @@ hist(model.tr.no_bad$residuals, breaks=100)
 
 ```{r}
 y = data_no_bad$V8
-ks.test((y^lambda-1)/lambda, "pnorm")
+ks.test(1/(y^lambda-1)/lambda, "pnorm")
 ```
