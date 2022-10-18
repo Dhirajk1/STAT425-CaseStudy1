@@ -221,6 +221,69 @@ preds = preds[preds != 'V8']
 permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data2)
 ```
 
+## Scaling the Data :) (Are you happy now Abhi)
+
+```{r}
+data_scaled = data2
+data_scaled$V9 = data_scaled$V9 / data_scaled$V5
+data_scaled$V10 = data_scaled$V10 / data_scaled$V5
+```
+
+```{R}
+round(cor(data_scaled[,-8]), dig=2)
+```
+
+```{r}
+anova(lm(V8~.,data_scaled), lm(V8~.-V15, data_scaled))
+```
+
+```{r}
+### Backward Selection Algorithm :) ###
+data_to_use = data_scaled
+predictors = names(data_to_use)
+predictors = predictors[predictors != "V8"]
+model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
+
+model_curr = model_full
+for (i in 1:(ncol(data2) - 1)) { 
+  p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
+  lowest_predictor = names(p_vals[which.max(p_vals)])
+  
+  if (p_vals[lowest_predictor] < .05) { break }
+  
+  reduced_model = lm(reformulate(predictors[predictors != lowest_predictor], "V8"), 
+                     data=data_to_use)
+  
+  if (anova(model_full, reduced_model)$"Pr(>F)"[2] < .05){ break }
+  
+  predictors = predictors[predictors != lowest_predictor]
+  model_curr = reduced_model
+}
+
+summary(model_curr)
+```
+
+```{r}
+anova(lm(V8 ~ V9 + V16 + I(V12 + V13), data_scaled), lm(V8~., data_scaled))
+```
+
+Hol up this shit looks gooooood
+
+```{r}
+summary(lm(V8 ~ V9 + V16 + I(V12 + V13), data_scaled))
+```
+
+```{r}
+plot(lm(V8^-2 ~ V9 + V16 + I(V12 + V13),data_scaled))
+```
+
+```{r}
+library(lmtest)
+bptest(lm(V8^-2 ~ V9 + V16 + I(V12 + V13),data_scaled))
+```
+
+**Still not normal but idk how to fix :(**
+
 # Unusual Observations
 
 ## High-Leverage Points
