@@ -58,7 +58,7 @@ head(data)
 Removing the **ID column** and the categorical **state** and **county** columns
 
 ```{r}
-data2 = data[,-c(1, 2, 3)]
+data = data[,-c(1, 2, 3)]
 head(data2)
 ```
 
@@ -67,11 +67,11 @@ head(data2)
 > Making da graphs
 
 ```{r}
-hist(data2$V8,main="Histogram of V8", breaks=250, col=2)
+hist(data$V8,main="Histogram of V8", breaks=250, col=2)
 ```
 
 ```{r}
-hist(data2$V8,breaks=250, main="Histogram of V8 < 5000", xlim=range(10, 5000), col=2)
+hist(data$V8,breaks=250, main="Histogram of V8 < 5000", xlim=range(10, 5000), col=2)
 ```
 
 ```{r}
@@ -84,9 +84,9 @@ ggplot(data2, aes(V8)) +
 Summary Stats for Each Column
 
 ```{r}
-summary(data2[,1:5])
-summary(data2[,6:10])
-summary(data2[,11:12])
+summary(data[,1:5])
+summary(data[,6:10])
+summary(data[,11:12])
 ```
 
 Correlation Matrix (fancy colors go brrrrr)
@@ -97,12 +97,39 @@ M = cor(data[,-c(1, 2, 3)])
 corrplot(M, tl.srt = 45)
 ```
 
+## Scaling the Data :) (Are you happy now Abhi)
+
+```{r}
+data_scaled = data
+data_scaled$V9 = data_scaled$V9 / data_scaled$V5
+data_scaled$V10 = data_scaled$V10 / data_scaled$V5
+```
+
+```{R}
+round(cor(data_scaled[,-8]), dig=2)
+```
+
+```{r}
+M = cor(data_scaled[,-8])
+corrplot(M)
+```
+
+V5 looks highly correlated with V16, and let's drop it
+
+```{r}
+anova(lm(V8~.,data_scaled), lm(V8~.-V5, data_scaled))
+```
+
+```{r}
+data_scaled = data_scaled[colnames(data_scaled) != "V5"]
+```
+
 # MLR Time
 
 > Let's start with a full model
 
 ```{r}
-model.full = lm(V8 ~ ., data=data2)
+model.full = lm(V8 ~ ., data)
 summary(model.full)
 ```
 
@@ -112,98 +139,12 @@ plot(model.full)
 
 Let's filter out predictors that have high p-values
 
-```{r}
-p_vals = summary(model.full)$coef[, "Pr(>|t|)"]
-names(p_vals[p_vals < .25])
-```
-
-Let's use these predictors and compare to the full model
-
-```{r}
-model.reduced = lm(V8 ~ V9 + V10 +  V11 + V12 + V16, data=data2)
-summary(model.reduced)
-anova(model.reduced, model.full)
-```
-
-```{r}
-plot(model.reduced)
-```
-
-Let's see if we can trim off `V17`
-
-```{r}
-model.reduced2 = lm(V8 ~  V9 + V11 + V12 + V15 + V16, data=data2)
-summary(model.reduced2)
-anova(model.reduced2, model.full)
-```
-
-```{r}
-plot(model.reduced2)
-```
-
-We could reduce our model further (by potentially getting rid of `V11`) but we're gonna keep it was is because all the coefficients have a good p-value (so they are probably not zero) and any removals would probably reduce the p-value from the anova (reduced vs full) significantly. For example:
-
-```{r}
-model.reduced2 = lm(V8 ~ V9 + V12 + V15 + V16, data=data2)
-summary(model.reduced2)
-anova(model.reduced2, model.full)
-```
-
-Now all our p-values for individual coefficients are less that $\alpha$ so we won't drop any more $\beta$s from our reduced model :)
-
-## Extra stuff?
-
-Trying to find highly correlated points
-
-```{r}
-round(cor(data[,-c(1, 2, 3, 8)]), dig=2)
-```
-
-```{r}
-M = cor(data[,-c(1, 2, 3, 9, 16, 5)])
-corrplot(M, tl.srt = 45)
-```
-
-Trying to find a grouping
-
-```{r}
-anova(lm(V8 ~ ., data2), lm(V8 ~ . -V12 - V13 + I(V12+V13), data2))
-```
-
-Backwards Selection to choose variables
-
-```{r}
-### Backward Selection Algorithm :) ###
-data_to_use = data[,-c(1, 2, 3)]
-predictors = names(data_to_use)
-predictors = predictors[predictors != "V8"]
-model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
-
-model_curr = model_full
-for (i in 1:(ncol(data2) - 1)) { 
-  p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
-  lowest_predictor = names(p_vals[which.max(p_vals)])
-  
-  if (p_vals[lowest_predictor] < .05) { break }
-  
-  reduced_model = lm(reformulate(predictors[predictors != lowest_predictor], "V8"), 
-                     data=data_to_use)
-  
-  if (anova(model_full, reduced_model)$"Pr(>F)"[2] < .05){ break }
-  
-  predictors = predictors[predictors != lowest_predictor]
-  model_curr = reduced_model
-}
-
-summary(model_curr)
-```
-
 Permutation Test
 
 ```{r}
 ### Permutation Test Function ###
 permutation_test = function(using, to_remove, dataset) {
-  n.iter = 2000
+  n.iter = 1000
   fstats = numeric(n.iter)
   predictors = union(using, to_remove)
   full_model = lm(reformulate(predictors, "V8"), data=dataset)
@@ -225,36 +166,257 @@ permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data2)
 permutation_test(preds, c("V9"), data2)
 ```
 
-## Scaling the Data :) (Are you happy now Abhi)
-
-```{r}
-data_scaled = data2
-data_scaled$V9 = data_scaled$V9 / data_scaled$V5
-data_scaled$V10 = data_scaled$V10 / data_scaled$V5
-```
-
-```{R}
-round(cor(data_scaled[,-8]), dig=2)
-```
-
-```{r}
-M = cor(data_scaled[,-8])
-corrplot(M)
-```
-
-```{r}
-anova(lm(V8~.,data_scaled), lm(V8~.-V5, data_scaled))
-```
-
-V5 looks highly correlated with V16, and we can drop it
-
-```{r}
-data_scaled = data_scaled[colnames(data_scaled) != "V5"]
-```
+Backward Selection Time :)
 
 ```{r}
 ### Backward Selection Algorithm :) ###
 data_to_use = data_scaled
+predictors = names(data_to_use)
+predictors = predictors[predictors != "V8"]
+all_preds = predictors
+model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
+
+model_curr = model_full
+for (i in 1:(ncol(data2) - 1)) { 
+  p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
+  lowest_predictor = names(p_vals[which.max(p_vals)])
+  # checking p value
+  if (p_vals[lowest_predictor] < .05) { break }
+  
+  reduced_model = lm(reformulate(predictors[predictors != lowest_predictor], "V8"), 
+                     data=data_to_use)
+  # anova against full model (is adequate replacement)
+  if (anova(model_full, reduced_model)$"Pr(>F)"[2] < .05){ break }
+  
+  # Double checking with permutation test (in case not normal)
+  predictors_ = predictors[predictors != lowest_predictor]
+  p = permutation_test(all_preds, all_preds[!(all_preds %in% predictors_) ], data_to_use)
+  if (p < .05) { break }
+  
+  predictors = predictors_
+  model_curr = reduced_model
+}
+
+summary(model_curr)
+```
+
+How is it good enough?
+
+```{r}
+anova(lm(V8~., data_scaled), lm(V8 ~ V9 + V12 + V13 + V16, data_scaled))
+```
+
+nice
+
+Let's see if we can combine V12 and V13
+
+```{r}
+anova(lm(V8~., data_scaled), lm(V8 ~ V9 + I(V12 + V13) + V16, data_scaled))
+```
+
+woohoo
+
+```{r}
+model = lm(V8 ~ V9 + I(V12 + V13) + V16, data_scaled)
+summary(model)
+```
+
+**We also consistently have high R squared values :)**
+
+# Model Assumptions
+
+## Constant Variance Assumption
+
+```{r}
+plot(model, which=1)
+```
+
+```{r}
+library(lmtest)
+bptest(model.reduced)
+```
+
+**yikes**
+
+Square Root Transform?
+
+```{r}
+sqrt_transform = lm(sqrt(V8) ~ V9 + I(V12 + V13) + V16, data=data2)
+plot(sqrt_transform, which=1)
+```
+
+```{r}
+bptest(sqrt_transform)
+```
+
+:(
+
+Log Transform?
+
+```{r}
+log_transform = lm(log(V8) ~ V9 + I(V12 + V13) + V16, data=data2)
+plot(log_transform, which=1)
+```
+
+```{r}
+bptest(log_transform)
+```
+
+:(
+
+Inverse Transform?
+
+```{r}
+inv_transform = lm(V8^-1 ~ V9 + I(V12 + V13) + V16, data=data2)
+plot(inv_transform, which=1)
+```
+
+```{r}
+bptest(inv_transform)
+```
+
+Better...
+
+```{r}
+inv_2_transform = lm(V8^-2 ~ V9 + I(V12 + V13) + V16, data=data2)
+plot(inv_2_transform, which=1)
+```
+
+```{r}
+bptest(inv_2_transform)
+```
+
+YAY WE GOT A GOOD P VALUE
+
+Let's try refitting our model
+
+```{r}
+model.const_variance = lm(V8^-2 ~ V9 + I(V12 + V13) + V16, data_scaled)
+summary(model.const_variance)
+```
+
+```{r}
+summary(lm(V8^-2 ~ ., data_scaled))
+```
+
+Yikes, a pretty bad R-squared value
+
+-   Variance transforms does not fix this issue
+
+## Normality Assumption
+
+```{r}
+hist(model$residuals,breaks=100, col=2)
+```
+
+```{r}
+plot(model, which=2, col=2)
+```
+
+```{r}
+ks.test(data2$V8, "pnorm")
+```
+
+\^ This is mad because an actual continuous distribution shouldn't have repeat points)
+
+**TLDR: So not normal :(**
+
+## Checking For Serial Dependence
+
+```{r}
+dwtest(model)
+```
+
+## Box Cox
+
+```{r}
+library(MASS)
+
+bc = boxcox(1/data2$V8 ~ ., data=data2)
+lambda = bc$x[which.max(bc$y)]
+```
+
+```{r}
+model.tr = lm(((V8^lambda-1)/lambda) ~ ., data_scaled)
+summary(model.tr)
+```
+
+```{r}
+plot(model.tr, col=2)
+```
+
+```{r}
+bptest(model.tr)
+```
+
+Still bad because R\^2 is not very high (not enough variance explained)
+
+# Unusual Observations
+
+## High-Leverage Points
+
+```{r}
+p = length(variable.names(model))
+n = nrow(data_scaled)
+data.leverages = influence(model)$hat
+```
+
+```{r}
+library(faraway)
+halfnorm(data.leverages, nlab=6, labs=as.character(1:length(data.leverages)), ylab="Leverages")
+```
+
+1, 2, 123 are kinda out there :0
+
+Let's find the high leverage points
+
+```{r}
+data.leverages.high = data.leverages[data.leverages > (2*p)/n]
+data.leverages.high = sort(abs(data.leverages.high), decreasing = TRUE)
+head(data.leverages.high)
+```
+
+Let's find all the rows that are "bad" high-leverage points
+
+```{r}
+# Calculate the IQR for the dependent variable 
+IQR_y = IQR(data_scaled$V8)
+
+#Define a range with its lower limit being (Q1 - IQR) and upper limit being (Q3 + IQR) 
+QT1_y = quantile(data_scaled$V8, 0.25)
+QT3_y = quantile(data_scaled$V8, 0.75)
+
+lower_lim_y = QT1_y - IQR_y
+upper_lim_y = QT3_y + IQR_y
+
+vector_lim_y = c(lower_lim_y,upper_lim_y)
+
+# Range for y variable 
+vector_lim_y
+```
+
+```{r}
+# Extract observations with high leverage points from the original data frame 
+data.highlev = data_scaled[data.leverages > 2*p/n,]
+
+# Select only the observations with leverage points outside the range 
+data.highlev_lower = data.highlev[data.highlev$V8 < vector_lim_y[1], ]
+data.highlev_upper = data.highlev[data.highlev$V8 > vector_lim_y[2], ]
+data.highlev2 = rbind(data.highlev_lower, data.highlev_upper)
+data.highlev2
+```
+
+What is we remove the high leverage points?
+
+```{r}
+data_scaled.no_bad_highlev = data_scaled[-as.integer(rownames(data.highlev2)),]
+model.full.no_bad_highlev = lm(V8 ~ . ,data_scaled.no_bad_highlev)
+summary(model.full.no_bad_highlev)
+```
+
+```{r}
+### Backward Selection Algorithm :) ###
+data_to_use = data_scaled.no_bad_highlev
 predictors = names(data_to_use)
 predictors = predictors[predictors != "V8"]
 model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
@@ -279,102 +441,7 @@ summary(model_curr)
 ```
 
 ```{r}
-anova(lm(V8 ~ V9 + V16 + I(V12 + V13), data_scaled), lm(V8~., data_scaled))
-```
-
-Hol up this shit looks gooooood
-
-```{r}
-summary(lm(V8 ~ V9 + V16 + I(V12 + V13), data_scaled))
-```
-
-```{r}
-plot(lm(V8^-2 ~ V9 + V16 + I(V12 + V13),data_scaled))
-```
-
-```{r}
-library(lmtest)
-bptest(lm(V8^-2 ~ V9 + V16 + I(V12 + V13),data_scaled))
-```
-
-**Still not normal but idk how to fix :(**
-
-# Unusual Observations
-
-## High-Leverage Points
-
-```{r}
-p = length(variable.names(model.reduced))
-n = nrow(data2)
-data.leverages = influence(model.reduced)$hat
-```
-
-```{r}
-library(faraway)
-halfnorm(data.leverages, nlab=6, labs=as.character(1:length(data.leverages)), ylab="Leverages")
-```
-
-1 and 2 are kinda out there :0
-
-Let's find the high leverage points
-
-```{r}
-data.leverages.high = data.leverages[data.leverages > (2*p)/n]
-data.leverages.high = sort(abs(data.leverages.high), decreasing = TRUE)
-head(data.leverages.high)
-```
-
-Let's find all the rows that are "bad" high-leverage points
-
-```{r}
-# Calculate the IQR for the dependent variable 
-IQR_y = IQR(data2$V8)
-
-#Define a range with its lower limit being (Q1 - IQR) and upper limit being (Q3 + IQR) 
-QT1_y = quantile(data2$V8, 0.25)
-QT3_y = quantile(data2$V8, 0.75)
-
-lower_lim_y = QT1_y - IQR_y
-upper_lim_y = QT3_y + IQR_y
-
-vector_lim_y = c(lower_lim_y,upper_lim_y)
-
-# Range for y variable 
-vector_lim_y
-```
-
-```{r}
-# Extract observations with high leverage points from the original data frame 
-data.highlev = data2[data.leverages > 2*p/n,]
-
-# Select only the observations with leverage points outside the range 
-data.highlev_lower = data.highlev[data.highlev$V8 < vector_lim_y[1], ]
-data.highlev_upper = data.highlev[data.highlev$V8 > vector_lim_y[2], ]
-data.highlev2 = rbind(data.highlev_lower, data.highlev_upper)
-data.highlev2
-```
-
-What is we remove the high leverage points?
-
-```{r}
-data2.no_bad_highlev = data2[-as.integer(rownames(data.highlev2)),]
-model.full.no_bad_highlev = lm(V8 ~ . , data=data2.no_bad_highlev)
-summary(model.full.no_bad_highlev)
-```
-
-```{r}
-p_vals = summary(model.full.no_bad_highlev)$coef[, "Pr(>|t|)"]
-names(p_vals[p_vals < .25])
-```
-
-```{r}
-model.reduced.no_bad_highlev = lm(V8 ~ V5 + V9 +  V12 + V15 + V16, data=data2.no_bad_highlev)
-summary(model.reduced.no_bad_highlev)
-anova(model.reduced.no_bad_highlev, model.full.no_bad_highlev)
-```
-
-```{r}
-plot(model.reduced.no_bad_highlev)
+plot(model_curr)
 ```
 
 ## Outliers
@@ -382,12 +449,12 @@ plot(model.reduced.no_bad_highlev)
 > Let's find the outliers in our dataset
 
 ```{r}
-p = length(variable.names(model.reduced))
-n = nrow(data2)
+p = length(variable.names(model))
+n = nrow(data_scaled)
 ```
 
 ```{r}
-data.resid = rstudent(model.reduced)
+data.resid = rstudent(model)
 data.resid.sorted = sort(abs(data.resid), decreasing=TRUE)
 head(data.resid.sorted)
 ```
@@ -412,25 +479,40 @@ cat("\nOutlier Values: ", data2$V8[as.integer(names(data.outliers))])
 What happens if we remove them from our data?
 
 ```{r}
-data2.no_outliers = data2[-as.integer(names(data.outliers)),]
+data_scaled.no_outliers = data_scaled[-as.integer(names(data.outliers)),]
 
-model.full.no_outliers = lm(V8~ ., data=data2.no_outliers)
+model.full.no_outliers = lm(V8~ ., data_scaled.no_outliers)
 summary(model.full.no_outliers)
 ```
 
 ```{r}
-p_vals = summary(model.full.no_outliers)$coef[, "Pr(>|t|)"]
-names(p_vals[p_vals < .25])
+### Backward Selection Algorithm :) ###
+data_to_use = data_scaled.no_outliers
+predictors = names(data_to_use)
+predictors = predictors[predictors != "V8"]
+model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
+
+model_curr = model_full
+for (i in 1:(ncol(data2) - 1)) { 
+  p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
+  lowest_predictor = names(p_vals[which.max(p_vals)])
+  
+  if (p_vals[lowest_predictor] < .05) { break }
+  
+  reduced_model = lm(reformulate(predictors[predictors != lowest_predictor], "V8"), 
+                     data=data_to_use)
+  
+  if (anova(model_full, reduced_model)$"Pr(>F)"[2] < .05){ break }
+  
+  predictors = predictors[predictors != lowest_predictor]
+  model_curr = reduced_model
+}
+
+summary(model_curr)
 ```
 
 ```{r}
-model.reduced.no_outliers = lm(V8 ~ V5 + V9 + V10 + V12 + V15 + V16, data=data2.no_outliers)
-summary(model.reduced.no_outliers)
-anova(model.reduced.no_outliers, model.full.no_outliers)
-```
-
-```{r}
-plot(model.reduced.no_outliers)
+plot(model_curr)
 ```
 
 ## Influential Points
@@ -438,167 +520,6 @@ plot(model.reduced.no_outliers)
 > Let's find the influential points using Cook's distance
 
 ```{r}
-data.cooks = cooks.distance(model.reduced)
+data.cooks = cooks.distance(model)
 data.cooks[data.cooks >= 1]
-```
-
-Look's like the first row is influential.
-
-```{r}
-plot(data.cooks)
-```
-
-Sure looks like it lol
-
-```{r}
-data.no_inf = data2[-1, ]
-model.full.no_inf = lm(V8 ~ ., data=data.no_inf)
-summary(model.full.no_inf)
-```
-
-```{r}
-model.reduced.no_inf = lm(V8 ~ V5 + V9 + V11 + V15 + V12 + V16, data.no_inf)
-summary(model.reduced.no_inf)
-anova(model.reduced.no_inf, model.full.no_inf)
-```
-
-```{r}
-plot(model.reduced.no_inf)
-```
-
-# Let's check the model assumptions
-
-## Constant Variance Assumption
-
-```{r}
-plot(model.reduced, which=1)
-```
-
-```{r}
-library(lmtest)
-bptest(model.reduced)
-```
-
-**yikes**
-
-Square Root Transform?
-
-```{r}
-sqrt_transform = lm(sqrt(V8) ~ V9 + V11 + V12 + V15 + V16, data=data2)
-plot(sqrt_transform, which=1)
-```
-
-```{r}
-bptest(sqrt_transform)
-```
-
-:(
-
-Log Transform?
-
-```{r}
-log_transform = lm(log(V8) ~ V9 + V11 + V12 + V15 + V16, data=data2)
-plot(log_transform, which=1)
-```
-
-```{r}
-bptest(log_transform)
-```
-
-:(
-
-Inverse Transform?
-
-```{r}
-inv_transform = lm(V8^-1 ~ V9 + V11 + V12 + V15 + V16, data=data2)
-plot(inv_transform, which=1)
-```
-
-```{r}
-bptest(inv_transform)
-```
-
-YAY WE GOT A GOOD P VALUE
-
-## Normality Assumption
-
-```{r}
-hist(model.reduced$residuals,breaks=100, col=2)
-```
-
-```{r}
-plot(model.reduced, which=2, col=2)
-```
-
-```{r}
-ks.test(data2$V8, "pnorm")
-```
-
-\^ This is mad because an actual continuous distribution shouldn't have repeat points
-
-```{r}
-shapiro.test(data2$V8)
-```
-
-technically this is only good for n \< 50 (our n is much bigger)
-
-**TLDR: So not normal :(**
-
-## Checking For Serial Dependence
-
-```{r}
-dwtest(model.reduced)
-```
-
-## Box Cox
-
-```{r}
-library(MASS)
-
-bc = boxcox(1/data2$V8 ~ ., data=data2)
-lambda = bc$x[which.max(bc$y)]
-```
-
-```{r}
-model.tr = lm(((V8^lambda-1)/lambda) ~ ., data=data2)
-summary(model.tr)
-```
-
-```{r}
-plot(model.tr, col=2)
-```
-
-```{r}
-bptest(model.tr)
-```
-
-Trying this w/ no outliers or bad high leverages
-
-```{r}
-data_no_bad = data2[-union(as.integer(rownames(data.highlev2)), as.integer(names(data.outliers))),]
-
-bc = boxcox(data_no_bad$V8 ~ ., data=data_no_bad)
-lambda = bc$x[which.max(bc$y)]
-```
-
-```{r}
-model.tr.no_bad = lm((V8^lambda-1)/lambda ~ ., data=data_no_bad)
-summary(model.tr)
-```
-
-```{r}
-plot(model.tr.no_bad, col=2)
-```
-
-```{r}
-bptest(model.tr.no_bad)
-```
-
-```{r}
-hist(model.tr.no_bad$residuals, breaks=100)
-```
-
-```{r}
-y = data_no_bad$V8
-ks.test(1/(y^lambda-1)/lambda, "pnorm")
 ```
