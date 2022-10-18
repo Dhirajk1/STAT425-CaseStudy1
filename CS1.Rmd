@@ -59,7 +59,7 @@ Removing the **ID column** and the categorical **state** and **county** columns
 
 ```{r}
 data = data[,-c(1, 2, 3)]
-head(data2)
+head(data)
 ```
 
 ## Exploring the Data
@@ -76,7 +76,7 @@ hist(data$V8,breaks=250, main="Histogram of V8 < 5000", xlim=range(10, 5000), co
 
 ```{r}
 library(ggplot2)
-ggplot(data2, aes(V8)) +
+ggplot(data, aes(V8)) +
   stat_ecdf(geom = "step", pad=FALSE, color=2) +
   ggtitle("Empircal Distribution of V8")
 ```
@@ -129,7 +129,7 @@ data_scaled = data_scaled[colnames(data_scaled) != "V5"]
 > Let's start with a full model
 
 ```{r}
-model.full = lm(V8 ~ ., data)
+model.full = lm(V8 ~ ., data_scaled)
 summary(model.full)
 ```
 
@@ -157,13 +157,13 @@ permutation_test = function(using, to_remove, dataset) {
   return (length(fstats[fstats > summary(full_model)$fstat[1]])/n.iter)
 }
 
-preds = colnames(data2)
+preds = colnames(data_scaled)
 preds = preds[preds != 'V8']
-permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data2)
+permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data_scaled)
 ```
 
 ```{r}
-permutation_test(preds, c("V9"), data2)
+permutation_test(preds, c("V9"), data)
 ```
 
 Backward Selection Time :)
@@ -177,7 +177,7 @@ all_preds = predictors
 model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
 
 model_curr = model_full
-for (i in 1:(ncol(data2) - 1)) { 
+for (i in 1:(ncol(data_scaled) - 1)) { 
   p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
   lowest_predictor = names(p_vals[which.max(p_vals)])
   # checking p value
@@ -233,7 +233,7 @@ plot(model, which=1)
 
 ```{r}
 library(lmtest)
-bptest(model.reduced)
+bptest(model)
 ```
 
 **yikes**
@@ -241,7 +241,7 @@ bptest(model.reduced)
 Square Root Transform?
 
 ```{r}
-sqrt_transform = lm(sqrt(V8) ~ V9 + I(V12 + V13) + V16, data=data2)
+sqrt_transform = lm(sqrt(V8) ~ V9 + I(V12 + V13) + V16, data=data_scaled)
 plot(sqrt_transform, which=1)
 ```
 
@@ -254,7 +254,7 @@ bptest(sqrt_transform)
 Log Transform?
 
 ```{r}
-log_transform = lm(log(V8) ~ V9 + I(V12 + V13) + V16, data=data2)
+log_transform = lm(log(V8) ~ V9 + I(V12 + V13) + V16, data=data_scaled)
 plot(log_transform, which=1)
 ```
 
@@ -267,7 +267,7 @@ bptest(log_transform)
 Inverse Transform?
 
 ```{r}
-inv_transform = lm(V8^-1 ~ V9 + I(V12 + V13) + V16, data=data2)
+inv_transform = lm(V8^-1 ~ V9 + I(V12 + V13) + V16, data=data_scaled)
 plot(inv_transform, which=1)
 ```
 
@@ -278,7 +278,7 @@ bptest(inv_transform)
 Better...
 
 ```{r}
-inv_2_transform = lm(V8^-2 ~ V9 + I(V12 + V13) + V16, data=data2)
+inv_2_transform = lm(V8^-2 ~ V9 + I(V12 + V13) + V16, data=data_scaled)
 plot(inv_2_transform, which=1)
 ```
 
@@ -314,7 +314,7 @@ plot(model, which=2, col=2)
 ```
 
 ```{r}
-ks.test(data2$V8, "pnorm")
+ks.test(data$V8, "pnorm")
 ```
 
 \^ This is mad because an actual continuous distribution shouldn't have repeat points)
@@ -332,7 +332,7 @@ dwtest(model)
 ```{r}
 library(MASS)
 
-bc = boxcox(1/data2$V8 ~ ., data=data2)
+bc = boxcox(1/data_scaled$V8 ~ ., data=data_scaled)
 lambda = bc$x[which.max(bc$y)]
 ```
 
@@ -422,7 +422,7 @@ predictors = predictors[predictors != "V8"]
 model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
 
 model_curr = model_full
-for (i in 1:(ncol(data2) - 1)) { 
+for (i in 1:(ncol(data_scaled) - 1)) { 
   p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
   lowest_predictor = names(p_vals[which.max(p_vals)])
   
@@ -472,8 +472,8 @@ data.outliers
 We got a couple of outliers over here :)
 
 ```{r}
-cat("Mean: ", mean(data2$V8))
-cat("\nOutlier Values: ", data2$V8[as.integer(names(data.outliers))])
+cat("Mean: ", mean(data_scaled$V8))
+cat("\nOutlier Values: ", data_scaled$V8[as.integer(names(data.outliers))])
 ```
 
 What happens if we remove them from our data?
@@ -493,7 +493,7 @@ predictors = predictors[predictors != "V8"]
 model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
 
 model_curr = model_full
-for (i in 1:(ncol(data2) - 1)) { 
+for (i in 1:(ncol(data_scaled) - 1)) { 
   p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
   lowest_predictor = names(p_vals[which.max(p_vals)])
   
