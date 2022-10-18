@@ -221,6 +221,10 @@ preds = preds[preds != 'V8']
 permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data2)
 ```
 
+```{r}
+permutation_test(preds, c("V9"), data2)
+```
+
 ## Scaling the Data :) (Are you happy now Abhi)
 
 ```{r}
@@ -234,7 +238,18 @@ round(cor(data_scaled[,-8]), dig=2)
 ```
 
 ```{r}
-anova(lm(V8~.,data_scaled), lm(V8~.-V15, data_scaled))
+M = cor(data_scaled[,-8])
+corrplot(M)
+```
+
+```{r}
+anova(lm(V8~.,data_scaled), lm(V8~.-V5, data_scaled))
+```
+
+V5 looks highly correlated with V16, and we can drop it
+
+```{r}
+data_scaled = data_scaled[colnames(data_scaled) != "V5"]
 ```
 
 ```{r}
