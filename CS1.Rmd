@@ -93,14 +93,8 @@ Correlation Matrix (fancy colors go brrrrr)
 
 ```{r}
 library(corrplot)
-M = cor(data.filtered)
+M = cor(data[,-c(1, 2, 3)])
 corrplot(M, tl.srt = 45)
-```
-
-```{r}
-model = lm(V8 ~., data=data)
-p_vals = summary(model)$coef[, 'Pr(>|t|)']
-names(p_vals[p_vals < .05])
 ```
 
 # MLR Time
@@ -110,6 +104,10 @@ names(p_vals[p_vals < .05])
 ```{r}
 model.full = lm(V8 ~ ., data=data2)
 summary(model.full)
+```
+
+```{r}
+plot(model.full)
 ```
 
 Let's filter out predictors that have high p-values
@@ -122,28 +120,106 @@ names(p_vals[p_vals < .25])
 Let's use these predictors and compare to the full model
 
 ```{r}
-model.reduced = lm(V8 ~ V5 + V9 + V11 + V12 + V15 + V16 + V17, data=data2)
+model.reduced = lm(V8 ~ V9 + V10 +  V11 + V12 + V16, data=data2)
 summary(model.reduced)
 anova(model.reduced, model.full)
+```
+
+```{r}
+plot(model.reduced)
 ```
 
 Let's see if we can trim off `V17`
 
 ```{r}
-model.reduced2 = lm(V8 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+model.reduced2 = lm(V8 ~  V9 + V11 + V12 + V15 + V16, data=data2)
 summary(model.reduced2)
 anova(model.reduced2, model.full)
+```
+
+```{r}
+plot(model.reduced2)
 ```
 
 We could reduce our model further (by potentially getting rid of `V11`) but we're gonna keep it was is because all the coefficients have a good p-value (so they are probably not zero) and any removals would probably reduce the p-value from the anova (reduced vs full) significantly. For example:
 
 ```{r}
-model.reduced2 = lm(V8 ~ V5 + V9 + V12 + V15 + V16, data=data2)
+model.reduced2 = lm(V8 ~ V9 + V12 + V15 + V16, data=data2)
 summary(model.reduced2)
 anova(model.reduced2, model.full)
 ```
 
 Now all our p-values for individual coefficients are less that $\alpha$ so we won't drop any more $\beta$s from our reduced model :)
+
+## Extra stuff?
+
+Trying to find highly correlated points
+
+```{r}
+round(cor(data[,-c(1, 2, 3, 8)]), dig=2)
+```
+
+```{r}
+M = cor(data[,-c(1, 2, 3, 9, 16, 5)])
+corrplot(M, tl.srt = 45)
+```
+
+Trying to find a grouping
+
+```{r}
+anova(lm(V8 ~ ., data2), lm(V8 ~ . -V12 - V13 + I(V12+V13), data2))
+```
+
+Backwards Selection to choose variables
+
+```{r}
+### Backward Selection Algorithm :) ###
+data_to_use = data[,-c(1, 2, 3)]
+predictors = names(data_to_use)
+predictors = predictors[predictors != "V8"]
+model_full = lm(reformulate(predictors, "V8"), data=data_to_use)
+
+model_curr = model_full
+for (i in 1:(ncol(data2) - 1)) { 
+  p_vals = summary(model_curr)$coef[-1,'Pr(>|t|)']
+  lowest_predictor = names(p_vals[which.max(p_vals)])
+  
+  if (p_vals[lowest_predictor] < .05) { break }
+  
+  reduced_model = lm(reformulate(predictors[predictors != lowest_predictor], "V8"), 
+                     data=data_to_use)
+  
+  if (anova(model_full, reduced_model)$"Pr(>F)"[2] < .05){ break }
+  
+  predictors = predictors[predictors != lowest_predictor]
+  model_curr = reduced_model
+}
+
+summary(model_curr)
+```
+
+Permutation Test
+
+```{r}
+### Permutation Test Function ###
+permutation_test = function(using, to_remove, dataset) {
+  n.iter = 2000
+  fstats = numeric(n.iter)
+  predictors = union(using, to_remove)
+  full_model = lm(reformulate(predictors, "V8"), data=dataset)
+  for (i in 1:n.iter) {
+    newdata = dataset;
+    newdata[,to_remove] = newdata[sample(nrow(newdata)), to_remove]
+    model = lm(reformulate(predictors, "V8"), data=newdata)
+    fstats[i] = summary(model)$fstat[1]
+  }
+  return (length(fstats[fstats > summary(full_model)$fstat[1]])/n.iter)
+}
+
+preds = colnames(data2)
+preds = preds[preds != 'V8']
+permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data2)
+```
 
 # Unusual Observations
 
@@ -312,7 +388,7 @@ anova(model.reduced.no_inf, model.full.no_inf)
 plot(model.reduced.no_inf)
 ```
 
-# Let's check the model assumption
+# Let's check the model assumptions
 
 ## Constant Variance Assumption
 
@@ -330,7 +406,7 @@ bptest(model.reduced)
 Square Root Transform?
 
 ```{r}
-sqrt_transform = lm(sqrt(V8) ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+sqrt_transform = lm(sqrt(V8) ~ V9 + V11 + V12 + V15 + V16, data=data2)
 plot(sqrt_transform, which=1)
 ```
 
@@ -343,7 +419,7 @@ bptest(sqrt_transform)
 Log Transform?
 
 ```{r}
-log_transform = lm(log(V8) ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+log_transform = lm(log(V8) ~ V9 + V11 + V12 + V15 + V16, data=data2)
 plot(log_transform, which=1)
 ```
 
@@ -356,7 +432,7 @@ bptest(log_transform)
 Inverse Transform?
 
 ```{r}
-inv_transform = lm(V8^-1 ~ V5 + V9 + V11 + V12 + V15 + V16, data=data2)
+inv_transform = lm(V8^-1 ~ V9 + V11 + V12 + V15 + V16, data=data2)
 plot(inv_transform, which=1)
 ```
 
@@ -364,7 +440,7 @@ plot(inv_transform, which=1)
 bptest(inv_transform)
 ```
 
-um idk about this one tbh
+YAY WE GOT A GOOD P VALUE
 
 ## Normality Assumption
 
