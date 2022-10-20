@@ -64,7 +64,7 @@ head(data)
 
 ## Exploring the Data
 
-> Making da graphs
+> Creating Graphs to Determine our Next Step
 
 ```{r}
 hist(data$V8,main="Histogram of V8", breaks=250, col=2)
@@ -89,7 +89,7 @@ summary(data[,6:10])
 summary(data[,11:12])
 ```
 
-Correlation Matrix (fancy colors go brrrrr)
+Creating a Correlation Matrix to figure out which columns are highly correlated with other columns to determine what we need to remove.
 
 ```{r}
 library(corrplot)
@@ -97,7 +97,9 @@ M = cor(data[,-c(1, 2, 3)])
 corrplot(M, tl.srt = 45)
 ```
 
-## Scaling the Data :) (Are you happy now Abhi)
+## Scaling the Data
+
+> Dividing the columns that are not currently percentages by the total population column, which allows us to represent the columns as the percent of the population.
 
 ```{r}
 data_scaled = data
@@ -114,7 +116,7 @@ M = cor(data_scaled[,-8])
 corrplot(M)
 ```
 
-V5 looks highly correlated with V16, and let's drop it
+V5 looks highly correlated with V16, so we decide to drop it to reveal any dependencies.
 
 ```{r}
 anova(lm(V8~.,data_scaled), lm(V8~.-V5, data_scaled))
@@ -139,7 +141,7 @@ plot(model.full)
 
 Let's filter out predictors that have high p-values
 
-Permutation Test
+Permutation Test to determine if we can remove these columns
 
 ```{r}
 ### Permutation Test Function ###
@@ -161,6 +163,8 @@ preds = colnames(data_scaled)
 preds = preds[preds != 'V8']
 permutation_test(preds, c("V4","V6", "V7", "V10", "V13", "V14", "V17"), data_scaled)
 ```
+
+> we can remove these columns because the p-value is large.
 
 ```{r}
 permutation_test(preds, c("V9"), data)
@@ -200,28 +204,28 @@ for (i in 1:(ncol(data_scaled) - 1)) {
 summary(model_curr)
 ```
 
-How is it good enough?
+Double checking our work using an ANOVA table.
 
 ```{r}
 anova(lm(V8~., data_scaled), lm(V8 ~ V9 + V12 + V13 + V16, data_scaled))
 ```
 
-nice
+Large p-value, means we got the desired result.
 
-Let's see if we can combine V12 and V13
+Testing to see if we can combine columns V12 and V13
 
 ```{r}
 anova(lm(V8~., data_scaled), lm(V8 ~ V9 + I(V12 + V13) + V16, data_scaled))
 ```
 
-woohoo
+Since the p-value is large, we are able to combine those columns and create a new model with the columns combined.
 
 ```{r}
 model = lm(V8 ~ V9 + I(V12 + V13) + V16, data_scaled)
 summary(model)
 ```
 
-**We also consistently have high R squared values :)**
+**We also consistently have high R squared values.**
 
 # Model Assumptions
 
@@ -236,9 +240,9 @@ library(lmtest)
 bptest(model)
 ```
 
-**yikes**
+The graph and the BP test do not give us our desired results, so we decide to check if transformations fix our issues.
 
-Square Root Transform?
+Square Root Transform:
 
 ```{r}
 sqrt_transform = lm(sqrt(V8) ~ V9 + I(V12 + V13) + V16, data=data_scaled)
@@ -249,9 +253,9 @@ plot(sqrt_transform, which=1)
 bptest(sqrt_transform)
 ```
 
-:(
+Square root does not work.
 
-Log Transform?
+Log Transform:
 
 ```{r}
 log_transform = lm(log(V8) ~ V9 + I(V12 + V13) + V16, data=data_scaled)
@@ -262,9 +266,9 @@ plot(log_transform, which=1)
 bptest(log_transform)
 ```
 
-:(
+Log Transform does not work.
 
-Inverse Transform?
+Inverse Transform:
 
 ```{r}
 inv_transform = lm(V8^-1 ~ V9 + I(V12 + V13) + V16, data=data_scaled)
@@ -275,7 +279,7 @@ plot(inv_transform, which=1)
 bptest(inv_transform)
 ```
 
-Better...
+Inverse is better, so we check to see if inverse squared works.
 
 ```{r}
 inv_2_transform = lm(V8^-2 ~ V9 + I(V12 + V13) + V16, data=data_scaled)
@@ -286,9 +290,9 @@ plot(inv_2_transform, which=1)
 bptest(inv_2_transform)
 ```
 
-YAY WE GOT A GOOD P VALUE
+Inverse squared gives us a desirable p-value.
 
-Let's try refitting our model
+Let's try refitting our model based on an inverse-squared transformation.
 
 ```{r}
 model.const_variance = lm(V8^-2 ~ V9 + I(V12 + V13) + V16, data_scaled)
@@ -299,9 +303,7 @@ summary(model.const_variance)
 summary(lm(V8^-2 ~ ., data_scaled))
 ```
 
-Yikes, a pretty bad R-squared value
-
--   Variance transforms does not fix this issue
+A low R-squared value is not good in this instance. This shows that transformations will not fix our variance.
 
 ## Normality Assumption
 
@@ -317,9 +319,7 @@ plot(model, which=2, col=2)
 ks.test(data$V8, "pnorm")
 ```
 
-\^ This is mad because an actual continuous distribution shouldn't have repeat points)
-
-**TLDR: So not normal :(**
+The tests we run for the normality assumption reveal our data to not be a normal distribution.
 
 ## Checking For Serial Dependence
 
@@ -349,7 +349,7 @@ plot(model.tr, col=2)
 bptest(model.tr)
 ```
 
-Still bad because R\^2 is not very high (not enough variance explained)
+The box-coc test still isn't the best because R\^2 is not very high, which means that not enough variance can be explained.
 
 # Unusual Observations
 
@@ -366,9 +366,9 @@ library(faraway)
 halfnorm(data.leverages, nlab=6, labs=as.character(1:length(data.leverages)), ylab="Leverages")
 ```
 
-1, 2, 123 are kinda out there :0
+1, 2, 123 are noticeably high leverage points on the graph
 
-Let's find the high leverage points
+Let's find the high leverage points using the 2p/n rule.
 
 ```{r}
 data.leverages.high = data.leverages[data.leverages > (2*p)/n]
@@ -406,7 +406,7 @@ data.highlev2 = rbind(data.highlev_lower, data.highlev_upper)
 data.highlev2
 ```
 
-What is we remove the high leverage points?
+What if we remove the high leverage points?
 
 ```{r}
 data_scaled.no_bad_highlev = data_scaled[-as.integer(rownames(data.highlev2)),]
@@ -446,7 +446,7 @@ plot(model_curr)
 
 ## Outliers
 
-> Let's find the outliers in our dataset
+> Let's find the outliers in our dataset.
 
 ```{r}
 p = length(variable.names(model))
@@ -469,14 +469,14 @@ data.outliers = data.resid[abs(data.resid) > abs(bonferroni_cv)]
 data.outliers
 ```
 
-We got a couple of outliers over here :)
+We found 3 outliers, represented above.
 
 ```{r}
 cat("Mean: ", mean(data_scaled$V8))
 cat("\nOutlier Values: ", data_scaled$V8[as.integer(names(data.outliers))])
 ```
 
-What happens if we remove them from our data?
+What happens if we remove the outliers from our data?
 
 ```{r}
 data_scaled.no_outliers = data_scaled[-as.integer(names(data.outliers)),]
@@ -523,3 +523,5 @@ plot(model_curr)
 data.cooks = cooks.distance(model)
 data.cooks[data.cooks >= 1]
 ```
+
+We have 0 influential points from the cooks distance, where an influential point is a point with a cooks distance greater than or equal to 1.
