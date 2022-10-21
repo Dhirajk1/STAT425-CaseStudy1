@@ -108,12 +108,12 @@ data_scaled$V10 = data_scaled$V10 / data_scaled$V5
 ```
 
 ```{R}
-round(cor(data_scaled[,-8]), dig=2)
+round(cor(data_scaled), dig=2)
 ```
 
 ```{r}
-M = cor(data_scaled[,-8])
-corrplot(M)
+M = cor(data_scaled)
+corrplot(M, tl.srt = 45)
 ```
 
 V5 looks highly correlated with V16, so we decide to drop it to reveal any dependencies.
@@ -124,6 +124,11 @@ anova(lm(V8~.,data_scaled), lm(V8~.-V5, data_scaled))
 
 ```{r}
 data_scaled = data_scaled[colnames(data_scaled) != "V5"]
+```
+
+```{r}
+M = cor(data_scaled)
+corrplot(M, tl.srt=45, title="Correlation Matrix", mar=c(0,0,1,0))
 ```
 
 # MLR Time
@@ -226,6 +231,14 @@ summary(model)
 ```
 
 **We also consistently have high R squared values.**
+
+```{r}
+estimates = predict(model)
+relative_errors = abs((estimates - data_scaled$V8) / data_scaled$V8)
+plot(relative_errors)
+```
+
+Not particularly accurate, especially for higher index values in our data.
 
 # Model Assumptions
 
@@ -349,7 +362,7 @@ plot(model.tr, col=2)
 bptest(model.tr)
 ```
 
-The box-coc test still isn't the best because R\^2 is not very high, which means that not enough variance can be explained.
+The box-cox test still isn't the best because R\^2 is not very high, which means that not enough variance can be explained.
 
 # Unusual Observations
 
@@ -363,7 +376,7 @@ data.leverages = influence(model)$hat
 
 ```{r}
 library(faraway)
-halfnorm(data.leverages, nlab=6, labs=as.character(1:length(data.leverages)), ylab="Leverages")
+halfnorm(data.leverages, nlab=6, labs=as.character(1:length(data.leverages)), ylab="Leverages", main="Half Normal Plot of Leverages")
 ```
 
 1, 2, 123 are noticeably high leverage points on the graph
