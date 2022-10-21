@@ -2,11 +2,11 @@
 title: "Case Study 1: Report"
 author: Jake Hunnis, Dhiraj Kuttichirayil, Khatija Syeda, Abhi Thanvi
 output: pdf_document
-toc: TRUE
 ---
 
 \newpage
-
+\tableofcontents
+\newpage
 ## 1. Introduction
 
 Due to the pandemic, there have been severe shortages in medical staff for many cities and counties around the nation. There is an article that discusses the severity of this issue of medical staff shortages, especially if correcting measures are not taken as soon as possible. Therefore, numerous government bodies and city planning committees have started discussing the ratios of medical staff to population or hospital resources. The goal in this case study is to attempt to create a regression model for predicting the number of practicing physicians though county attributes from the years 1990 and 1992. The data set provides selected county demographic information (CDI) for 440 of the most populous counties in the United States.
@@ -15,7 +15,7 @@ Link to the article: \textcolor{blue}{(https://www.ama-assn.org/practice-managem
 
 ## 2. Cleaning Up and Visualizing the Dataset
 
-Viewing the dataset, we observed that the `Identification Number`column held no significant information that would help perform the regression analysis. The `County` and `State` column were also removed from this regression to avoid over fitting based on geographic indicators in order to favor a model that would be more versatile by only considering the county's attribute instead of already known information about the county. Based on these observations, we removed these unnecessary columns. We created a frequency histogram of the number of active physicians as well as an empirical distribution graph so we can better understand how this data is distributed We saw that 75% of the response values were below 1036.0, while the maximum value was 23677.0. Additionally, we printed the descriptive statistics of each predictor to gain better insight on the data as a whole.
+Viewing the dataset, we observed that the `Identification Number` column held no significant information that would help perform the regression analysis. The `County` and `State` column were also removed from this regression to avoid over fitting based on geographic indicators in order to favor a model that would be more versatile by only considering the county's attribute instead of already known information about the county. Based on these observations, we removed these unnecessary columns. We created a frequency histogram of the number of active physicians as well as an empirical distribution graph so we can better understand how this data is distributed We saw that 75% of the response values were below 1036.0, while the maximum value was 23677.0. Additionally, we printed the descriptive statistics of each predictor to gain better insight on the data as a whole.
 
 ## 3. Reconfiguring the data
 
